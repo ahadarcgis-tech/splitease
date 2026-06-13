@@ -7,9 +7,9 @@ function genId(len = 16) {
   return Array.from(crypto.getRandomValues(new Uint8Array(len)))
     .map(b => b.toString(16).padStart(2,'0')).join('');
 }
-let deviceId = localStorage.getItem('se_deviceId');
-if (!deviceId) { deviceId = genId(); localStorage.setItem('se_deviceId', deviceId); }
-let userName = localStorage.getItem('se_userName') || null;
+let deviceId = sessionStorage.getItem('se_deviceId');
+if (!deviceId) { deviceId = genId(); sessionStorage.setItem('se_deviceId', deviceId); }
+let userName = sessionStorage.getItem('se_userName') || localStorage.getItem('se_userName') || null;
 
 // ── 2. SOCKET ────────────────────────────────────────
 // Use lazy connect so we control when it fires
@@ -67,6 +67,7 @@ function submitName() {
   const n = nameInput.value.trim();
   if (!n) { nameInput.style.borderColor = 'var(--danger)'; return; }
   userName = n;
+  sessionStorage.setItem('se_userName', n);
   localStorage.setItem('se_userName', n);
   modal.classList.add('hidden');
   initApp();
@@ -124,6 +125,7 @@ function applyDark(d, save) {
 // ── 5. PARTY STATE ───────────────────────────────────
 let currentParty = null;
 let partyData    = null;
+let expenseChartInstance = null;
 
 // Wire up buttons AFTER DOM loads (DOMContentLoaded guarantees it)
 document.addEventListener('DOMContentLoaded', () => {
@@ -490,6 +492,20 @@ function renderSettle(members, spent, share, total, bal, transfers) {
           body.appendChild(row);
         });
       }
+
+      // Add the Pie Chart container!
+      const chartDiv = document.createElement('div');
+      chartDiv.id = 'chartContainer';
+      chartDiv.className = 'chart-card';
+      chartDiv.style.cssText = 'background:var(--surface2); border:1px solid var(--border); border-radius:9px; padding:12px; margin-top:10px; flex-shrink:0;';
+      chartDiv.innerHTML = `
+        <div style="font-size:0.85rem; font-weight:700; color:var(--text-2); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px; text-align:center;">Expense Share</div>
+        <div style="position:relative; height:180px; width:100%;"><canvas id="expenseChart"></canvas></div>
+      `;
+      body.appendChild(chartDiv);
+
+      // Render the chart
+      renderPieChart(members, spent);
       return;
     }
 
@@ -553,6 +569,85 @@ function renderSettle(members, spent, share, total, bal, transfers) {
         show(+btn.dataset.i);
       }
     });
+  });
+}
+
+function renderPieChart(members, spent) {
+  if (typeof Chart === 'undefined') {
+    console.warn('Chart.js not loaded.');
+    return;
+  }
+  const ctx = document.getElementById('expenseChart');
+  if (!ctx) return;
+
+  if (expenseChartInstance) {
+    expenseChartInstance.destroy();
+    expenseChartInstance = null;
+  }
+
+  const labels = [];
+  const data = [];
+  const backgroundColors = [];
+
+  members.forEach(m => {
+    const amt = spent[m.id] || 0;
+    if (amt > 0) {
+      labels.push(m.name);
+      data.push(amt);
+      backgroundColors.push(memberColor(m.id));
+    }
+  });
+
+  const container = document.getElementById('chartContainer');
+  if (data.length === 0) {
+    if (container) container.style.display = 'none';
+    return;
+  } else {
+    if (container) container.style.display = 'block';
+  }
+
+  const isDark = document.documentElement.getAttribute('data-mode') === 'dark';
+  const textColor = isDark ? 'hsl(30,12%,82%)' : 'hsl(20,20%,24%)';
+
+  expenseChartInstance = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: backgroundColors,
+        borderWidth: isDark ? 2 : 1,
+        borderColor: isDark ? '#1a120c' : '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: textColor,
+            font: {
+              family: 'Inter',
+              weight: 'bold',
+              size: 11
+            },
+            boxWidth: 10
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const val = context.raw || 0;
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = ((val / total) * 100).toFixed(1);
+              return ` ${context.label}: $${val.toFixed(2)} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
   });
 }
 
