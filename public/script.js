@@ -721,3 +721,105 @@ function toast(msg) {
 function fmtDate(ts) {
   return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+// ── 14. EMAIL SYNC SYSTEM ────────────────────────────
+let syncEmail = null;
+
+function openSyncModal() {
+  document.getElementById('syncModal').classList.remove('hidden');
+  document.getElementById('syncStepEmail').classList.remove('hidden');
+  document.getElementById('syncStepCode').classList.add('hidden');
+  document.getElementById('syncEmailInput').value = '';
+  document.getElementById('syncCodeInput').value = '';
+  document.getElementById('syncModalDesc').textContent = 'Link your email to back up your local party history and restore it on other devices.';
+}
+
+function closeSyncModal() {
+  document.getElementById('syncModal').classList.add('hidden');
+}
+
+function submitSyncEmail() {
+  const email = document.getElementById('syncEmailInput').value.trim();
+  if (!email || !email.includes('@')) {
+    toast('⚠️ Enter a valid email address');
+    return;
+  }
+  syncEmail = email;
+  const btn = document.getElementById('syncEmailSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  fetch('/api/user/email-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  })
+  .then(res => res.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.textContent = 'Send Verification Code →';
+    if (data && data.success) {
+      document.getElementById('syncStepEmail').classList.add('hidden');
+      document.getElementById('syncStepCode').classList.remove('hidden');
+      toast('🔑 Code sent! (Check alert/prompt)');
+      // Alert showing the simulated code so it is easy for the user to copy-paste
+      alert(`[SIMULATED EMAIL SERVICE]\n\nTo: ${email}\nSubject: SplitEase Verification Code\n\nYour 4-digit verification code is: ${data.mockCode}`);
+    } else {
+      toast('❌ Error: ' + (data.error || 'Failed to send code'));
+    }
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.textContent = 'Send Verification Code →';
+    toast('❌ Network error sending code');
+  });
+}
+
+function submitSyncCode() {
+  const code = document.getElementById('syncCodeInput').value.trim();
+  if (code.length !== 4) {
+    toast('⚠️ Enter a 4-digit code');
+    return;
+  }
+  const btn = document.getElementById('syncCodeSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Verifying...';
+
+  const localHistory = JSON.parse(localStorage.getItem('se_history') || '[]');
+
+  fetch('/api/user/email-verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: syncEmail, code, history: localHistory })
+  })
+  .then(res => res.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.textContent = 'Verify & Sync →';
+    if (data && data.success) {
+      closeSyncModal();
+      if (data.action === 'restore') {
+        // Restore history from server (merge with local history)
+        const serverHistory = data.history || [];
+        const merged = [...localHistory];
+        serverHistory.forEach(sItem => {
+          if (!merged.some(mItem => mItem.code === sItem.code)) {
+            merged.push(sItem);
+          }
+        });
+        localStorage.setItem('se_history', JSON.stringify(merged));
+        renderHistory();
+        toast('🎉 History successfully restored from email!');
+      } else {
+        toast('💾 History successfully saved to email!');
+      }
+    } else {
+      toast('❌ ' + (data.error || 'Verification failed'));
+    }
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.textContent = 'Verify & Sync →';
+    toast('❌ Network error verifying code');
+  });
+}

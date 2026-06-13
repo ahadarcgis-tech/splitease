@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="warm" data-mode="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SplitEase — Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ── RESET & THEME VARIABLES ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg: #13121a;
+      --bg-sidebar: #191821;
+      --surface: #1e1d28;
+      --surface-card: #242332;
+      --border: hsla(30, 25%, 30%, 0.15);
+      --primary: #f26f23;
+      --primary-dim: #b84a0d;
+      --success: #10b981;
+      --danger: #ef4444;
+      --text: #f5e6d3;
+      --text-2: #a59b8d;
+      --text-3: #655d54;
+      --font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      overflow-x: hidden;
+      height: 100vh;
+      display: flex;
+    }
+
+    /* ── LOGIN SECTION ── */
+    #loginView {
+      position: fixed; inset: 0; z-index: 1000;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-box {
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 2.5rem 2rem;
+      width: 90%; max-width: 400px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+      text-align: center;
+    }
+    .login-logo { font-size: 3rem; margin-bottom: 0.5rem; display: block; }
+    .login-box h2 { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.35rem; }
+    .login-box p { color: var(--text-2); font-size: 0.95rem; margin-bottom: 1.8rem; }
+    .login-input {
+      width: 100%; padding: 0.8rem 1rem;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-family: inherit; font-size: 1rem; margin-bottom: 0.9rem;
+      outline: none; transition: border-color 0.2s;
+    }
+    .login-input:focus { border-color: var(--primary); }
+    .login-btn {
+      width: 100%; padding: 0.85rem;
+      background: var(--primary); color: #fff;
+      border: none; border-radius: 10px;
+      font-size: 1.05rem; font-weight: 700; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .login-btn:hover { background: var(--primary-dim); }
+
+    /* ── ADMIN LAYOUT ── */
+    #dashboardView {
+      display: flex;
+      width: 100vw; height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 250px; background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 24px;
+      flex-shrink: 0;
+    }
+    .sidebar-brand {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 36px;
+    }
+    .sidebar-logo { font-size: 1.6rem; }
+    .sidebar-title { font-size: 1.25rem; font-weight: 800; color: var(--text); }
+    
+    .sidebar-menu {
+      display: flex; flex-direction: column; gap: 8px; flex: 1;
+    }
+    .menu-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 16px; border-radius: 10px;
+      color: var(--text-2); text-decoration: none;
+      font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .menu-item:hover {
+      background: var(--surface); color: var(--text);
+    }
+    .menu-item.active {
+      background: #ffffff; color: #111115; /* white active tab matching the design template */
+    }
+    .sidebar-divider {
+      height: 1px; background: var(--border); margin: 16px 0;
+    }
+
+    /* Help Card */
+    .help-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; margin-top: auto;
+      text-align: center;
+    }
+    .help-card p { font-size: 0.85rem; color: var(--text-2); margin-bottom: 10px; }
+    .help-card button {
+      background: #4f46e5; color: #fff; border: none;
+      border-radius: 6px; padding: 6px 12px; font-weight: 700;
+      font-size: 0.82rem; cursor: pointer; width: 100%;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1; display: flex; flex-direction: column;
+      overflow-y: auto; background: var(--bg);
+    }
+
+    /* Top navbar */
+    .topnav {
+      height: 64px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; flex-shrink: 0;
+    }
+    .nav-title { font-size: 1.45rem; font-weight: 800; }
+    .nav-controls { display: flex; align-items: center; gap: 20px; }
+    .date-badge {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 12px; font-size: 0.85rem;
+      color: var(--text-2); font-weight: 600;
+    }
+    .nav-profile { display: flex; align-items: center; gap: 8px; }
+    .nav-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: #e2e8f0;
+      background-image: url('https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80');
+      background-size: cover;
+    }
+    .nav-name { font-size: 0.9rem; font-weight: 600; color: var(--text-2); }
+
+    /* Dashboard body */
+    .dashboard-body {
+      padding: 24px 32px;
+      display: flex; flex-direction: column; gap: 24px;
+    }
+
+    /* 4-col Grid of Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+    .stat-card {
+      background: var(--bg-sidebar); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px;
+      display: flex; flex-direction: column; gap: 8px;
+      position: relative;
+    }
+    .card-lbl {
+      font-size: 0.85rem; font-weight: 700;
+      color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .card-val { font-size: 2.1rem; font-weight: 800; color: var(--text); }
+    .card-trend {
+      font-size: 0.8rem; font-weight: 700;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .trend-up { color: var(--success); }
+    .trend-down { color: var(--danger); }
+
+    /* Mid section: Donut charts / progress cards */
+    .charts-row-1 {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr 1fr;
+      gap: 20px;
+    }
+    .chart-card {
+      background: var(--bg-sidebar); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .chart-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .chart-title {
+      font-size: 0.9rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--text-2);
+    }
+    .chart-canvas-wrap {
+      position: relative; height: 160px; width: 100%;
+    }
+
+    /* Target circular progress cards */
+    .progress-card {
+      background: var(--bg-sidebar); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .progress-info { display: flex; flex-direction: column; gap: 4px; }
+    .progress-info h3 { font-size: 0.88rem; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em; }
+    .progress-info .amt { font-size: 1.6rem; font-weight: 800; }
+    .progress-info .lbl { font-size: 0.78rem; color: var(--text-3); }
+    
+    /* Circular Progress SVGs */
+    .circle-progress-wrap { position: relative; width: 68px; height: 68px; }
+    .circle-bg { fill: none; stroke: var(--surface); stroke-width: 4px; }
+    .circle-val {
+      fill: none; stroke: var(--primary); stroke-width: 4px;
+      stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%;
+    }
+    .circle-text {
+      position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; font-size: 0.85rem; font-weight: 800;
+    }
+
+    /* Bottom section: Line chart / Recent activity Table */
+    .charts-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    /* Table styles */
+    .table-card {
+      background: var(--bg-sidebar); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px;
+      display: flex; flex-direction: column; gap: 16px;
+      overflow: hidden;
+    }
+    .table-wrap { overflow-x: auto; flex: 1; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th {
+      padding: 10px 12px; font-size: 0.78rem; font-weight: 700;
+      color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em;
+      border-bottom: 1.5px solid var(--border);
+    }
+    td {
+      padding: 11px 12px; font-size: 0.88rem; font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    tr:last-child td { border-bottom: none; }
+    
+    /* Status pill design */
+    .pill {
+      display: inline-block; padding: 3px 8px; border-radius: 6px;
+      font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .pill-green { background: hsla(142,70%,45%,0.15); color: var(--success); }
+    .pill-yellow { background: hsla(45,90%,45%,0.15); color: #f59e0b; }
+    .pill-red { background: hsla(2,70%,45%,0.15); color: var(--danger); }
+    .pill-blue { background: hsla(200,80%,45%,0.15); color: #06b6d4; }
+
+    /* Helper styles */
+    .hidden { display: none !important; }
+    .empty-msg { font-size: 0.95rem; color: var(--text-3); padding: 12px 0; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <!-- ── 1. LOGIN SCREEN ── -->
+  <div id="loginView">
+    <div class="login-box">
+      <span class="login-logo">🔐</span>
+      <h2>SplitEase Admin</h2>
+      <p>Secure authentication required</p>
+      
+      <input type="text" id="usernameInput" class="login-input" placeholder="Username" autocomplete="off" />
+      <input type="password" id="passwordInput" class="login-input" placeholder="Password" />
+      <button class="login-btn" onclick="submitLogin()">Log In</button>
+    </div>
+  </div>
+
+  <!-- ── 2. DASHBOARD SHELL ── -->
+  <div id="dashboardView" class="hidden">
+    
+    <!-- Sidebar Left -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="sidebar-logo">💸</span>
+        <span class="sidebar-title">SplitEase Admin</span>
+      </div>
+      
+      <nav class="sidebar-menu">
+        <div class="menu-item active">📈 Analytics</div>
+        <div class="menu-item" onclick="toast('Menu features simulated for admin')">👥 Teams & Parties</div>
+        <div class="menu-item" onclick="toast('Menu features simulated for admin')">💸 Transactions</div>
+        <div class="menu-item" onclick="toast('Menu features simulated for admin')">👤 Users</div>
+        <div class="sidebar-divider"></div>
+        <div class="menu-item" onclick="toast('Settings locked')">⚙️ Settings</div>
+        <div class="menu-item" onclick="adminSignOut()">🚪 Sign Out</div>
+      </nav>
+
+      <div class="help-card">
+        <p>Need help? Feel free to contact.</p>
+        <button onclick="alert('Support hotline: support@splitease.local')">Get Support</button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Top Nav -->
+      <nav class="topnav">
+        <h2 class="nav-title">Analytics</h2>
+        
+        <div class="nav-controls">
+          <div class="date-badge">📅 01.06.2026 - 31.06.2026</div>
+          
+          <div class="nav-profile">
+            <div class="nav-avatar"></div>
+            <span class="nav-name">Kristi Kamlykova</span>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Dashboard Body -->
+      <div class="dashboard-body">
+        
+        <!-- Stats Row 1: 4 Cards -->
+        <section class="stats-grid">
+          <div class="stat-card">
+            <span class="card-lbl">Live Connections</span>
+            <span class="card-val" id="statSockets">0</span>
+            <span class="card-trend trend-up">▲ 10.4% <span style="color:var(--text-3); font-weight:400;">active sockets</span></span>
+          </div>
+
+          <div class="stat-card">
+            <span class="card-lbl">Parties Created</span>
+            <span class="card-val" id="statParties">0</span>
+            <span class="card-trend trend-up">▲ 8.2% <span style="color:var(--text-3); font-weight:400;">since launch</span></span>
+          </div>
+
+          <div class="stat-card">
+            <span class="card-lbl">Total Expenses</span>
+            <span class="card-val" id="statExpenses">$0.00</span>
+            <span class="card-trend trend-up">▲ 12.5% <span style="color:var(--text-3); font-weight:400;">group splits</span></span>
+          </div>
+
+          <div class="stat-card">
+            <span class="card-lbl">Visitors Count</span>
+            <span class="card-val" id="statVisitors">0</span>
+            <span class="card-trend trend-up">▲ 15.1% <span style="color:var(--text-3); font-weight:400;">page views</span></span>
+          </div>
+        </section>
+
+        <!-- Charts Row 1: Bar Chart & Donut Charts & Progress circles -->
+        <section class="charts-row-1">
+          
+          <!-- Sales dynamics bar chart -->
+          <div class="chart-card">
+            <div class="chart-hdr">
+              <span class="chart-title">Sales dynamics</span>
+              <span style="font-size:0.8rem; color:var(--text-3);">2026 ▾</span>
+            </div>
+            <div class="chart-canvas-wrap" style="height:190px;">
+              <canvas id="salesDynamicsChart"></canvas>
+            </div>
+          </div>
+
+          <!-- User donut chart -->
+          <div class="chart-card">
+            <div class="chart-hdr">
+              <span class="chart-title">Users status</span>
+            </div>
+            <div class="chart-canvas-wrap" style="height:190px;">
+              <canvas id="userStatusChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Progress metrics stacked -->
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <div class="progress-card">
+              <div class="progress-info">
+                <h3>Paid Expenses</h3>
+                <span class="amt" id="progressPaidAmt">$30256.23</span>
+                <span class="lbl">Current Fiscal Month</span>
+              </div>
+              <div class="circle-progress-wrap">
+                <svg width="68" height="68">
+                  <circle class="circle-bg" cx="34" cy="34" r="30" />
+                  <circle class="circle-val" cx="34" cy="34" r="30" style="stroke-dasharray: 188.4; stroke-dashoffset: 160.1; stroke: #a78bfa;" />
+                </svg>
+                <div class="circle-text" style="color:#a78bfa;">+15%</div>
+              </div>
+            </div>
+
+            <div class="progress-card">
+              <div class="progress-info">
+                <h3>Funds Settled</h3>
+                <span class="amt" id="progressSettledAmt">$150256.23</span>
+                <span class="lbl">Current Fiscal Month</span>
+              </div>
+              <div class="circle-progress-wrap">
+                <svg width="68" height="68">
+                  <circle class="circle-bg" cx="34" cy="34" r="30" />
+                  <circle class="circle-val" cx="34" cy="34" r="30" style="stroke-dasharray: 188.4; stroke-dashoffset: 77.2; stroke: var(--success);" />
+                </svg>
+                <div class="circle-text" style="color:var(--success);">+59%</div>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Charts Row 2: User Activity Line Chart & Recent Activity Log Table -->
+        <section class="charts-row-2">
+          
+          <!-- User activity line chart -->
+          <div class="chart-card">
+            <div class="chart-hdr">
+              <span class="chart-title">Overall User Activity</span>
+              <span style="font-size:0.8rem; color:var(--text-3);">2026 ▾</span>
+            </div>
+            <div class="chart-canvas-wrap" style="height:220px;">
+              <canvas id="userActivityChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Recent Activity Log Table -->
+          <div class="table-card">
+            <div class="chart-hdr">
+              <span class="chart-title">Recent Activity</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Action</th>
+                    <th>Details</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="activityTableBody">
+                  <tr>
+                    <td colspan="4" class="empty-msg">No server activity logged yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+      </div>
+    </main>
+
+  </div>
+
+  <!-- ── 3. SCRIPTS ── -->
+  <script>
+    let token = localStorage.getItem('se_admin_token');
+    let refreshInterval = null;
+
+    // Charts instances
+    let salesChartInstance = null;
+    let userStatusChartInstance = null;
+    let activityChartInstance = null;
+
+    // Auto check session
+    if (token) {
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('dashboardView').classList.remove('hidden');
+      loadAdminStats();
+      refreshInterval = setInterval(loadAdminStats, 4000); // refresh every 4s
+    }
+
+    function submitLogin() {
+      const u = document.getElementById('usernameInput').value.trim();
+      const p = document.getElementById('passwordInput').value.trim();
+
+      fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success) {
+          token = data.token;
+          localStorage.setItem('se_admin_token', token);
+          document.getElementById('loginView').classList.add('hidden');
+          document.getElementById('dashboardView').classList.remove('hidden');
+          loadAdminStats();
+          refreshInterval = setInterval(loadAdminStats, 4000);
+          toast('🔓 Login successful');
+        } else {
+          alert('❌ Authentication failed: ' + (data.error || 'Invalid credentials'));
+        }
+      })
+      .catch(() => {
+        alert('❌ Login error. Check server.');
+      });
+    }
+
+    function adminSignOut() {
+      token = null;
+      localStorage.removeItem('se_admin_token');
+      if (refreshInterval) clearInterval(refreshInterval);
+      document.getElementById('loginView').classList.remove('hidden');
+      document.getElementById('dashboardView').classList.add('hidden');
+    }
+
+    function loadAdminStats() {
+      fetch('/api/admin/stats', {
+        method: 'GET',
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(res => {
+        if (res.status === 403 || res.status === 401) {
+          adminSignOut();
+          return;
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (!data) return;
+        
+        // Update stats card DOM
+        document.getElementById('statSockets').textContent = data.activeSockets;
+        document.getElementById('statParties').textContent = data.totalParties;
+        document.getElementById('statExpenses').textContent = '$' + data.totalExpenses.toFixed(2);
+        document.getElementById('statVisitors').textContent = data.visitorsCount;
+        
+        // Update progress card dollar amounts
+        document.getElementById('progressPaidAmt').textContent = '$' + data.totalExpenses.toFixed(2);
+        document.getElementById('progressSettledAmt').textContent = '$' + (data.totalExpenses * 0.72).toFixed(2);
+
+        // Update charts
+        updateSalesChart(data.monthlyCreations);
+        updateUserStatusChart(data.totalMembers, data.activeSockets);
+        updateUserActivityChart(data.monthlyCreations); // simulated data mapping
+        updateActivityLog(data.activityLog);
+      })
+      .catch(() => {
+        console.error('Failed to load admin statistics');
+      });
+    }
+
+    // ── CHARTS DRAWING ──
+
+    function updateSalesChart(monthlyCreations) {
+      const ctx = document.getElementById('salesDynamicsChart');
+      if (!ctx) return;
+
+      if (salesChartInstance) {
+        salesChartInstance.data.datasets[0].data = monthlyCreations;
+        salesChartInstance.update();
+        return;
+      }
+
+      salesChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+          datasets: [{
+            data: monthlyCreations,
+            backgroundColor: '#4f46e5',
+            borderRadius: 6,
+            barThickness: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#655d54', font: { size: 9 } } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#655d54', font: { size: 9 } } }
+          }
+        }
+      });
+    }
+
+    function updateUserStatusChart(totalMembers, activeSockets) {
+      const ctx = document.getElementById('userStatusChart');
+      if (!ctx) return;
+
+      const active = activeSockets;
+      const offline = Math.max(0, totalMembers - active);
+      const idle = Math.floor(offline * 0.15);
+      const finalOffline = Math.max(0, offline - idle);
+
+      // Avoid drawing empty donut
+      const chartData = [active || 1, idle || 0, finalOffline || 1];
+
+      if (userStatusChartInstance) {
+        userStatusChartInstance.data.datasets[0].data = chartData;
+        userStatusChartInstance.update();
+        return;
+      }
+
+      userStatusChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Active', 'Idle', 'Offline'],
+          datasets: [{
+            data: chartData,
+            backgroundColor: ['#10b981', '#f59e0b', '#655d54'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '70%',
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { color: '#a59b8d', boxWidth: 10, font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    function updateUserActivityChart(monthlyCreations) {
+      const ctx = document.getElementById('userActivityChart');
+      if (!ctx) return;
+
+      if (activityChartInstance) {
+        return;
+      }
+
+      // Smooth simulated purple activity line chart matching the design layout
+      activityChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+          datasets: [{
+            data: monthlyCreations.map(v => v * 1.5 + Math.floor(Math.random() * 5)),
+            borderColor: '#a78bfa',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#655d54', font: { size: 9 } } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#655d54', font: { size: 9 } } }
+          }
+        }
+      });
+    }
+
+    function updateActivityLog(logs) {
+      const body = document.getElementById('activityTableBody');
+      if (!body) return;
+
+      if (!logs || logs.length === 0) {
+        body.innerHTML = '<tr><td colspan="4" class="empty-msg">No server activity logged yet.</td></tr>';
+        return;
+      }
+
+      body.innerHTML = '';
+      logs.slice(0, 5).forEach(log => {
+        const tr = document.createElement('tr');
+        
+        let detailsText = '';
+        let statusClass = 'pill-blue';
+        let statusName = 'INFO';
+
+        if (log.action === 'Create Party') {
+          detailsText = `Code: ${log.details.code} by ${log.details.userName}`;
+          statusClass = 'pill-yellow';
+          statusName = 'NEW TEAM';
+        } else if (log.action === 'Join Party') {
+          detailsText = `User ${log.details.userName} joined ${log.details.code}`;
+          statusClass = 'pill-green';
+          statusName = 'JOIN';
+        } else if (log.action === 'Add Expense') {
+          detailsText = `+$${log.details.amount.toFixed(2)} in ${log.details.code} by ${log.details.memberName}`;
+          statusClass = 'pill-blue';
+          statusName = 'EXPENSE';
+        } else if (log.action === 'Delete Expense') {
+          detailsText = `Deleted expense ${log.details.expenseId.slice(0,8)}... in ${log.details.code}`;
+          statusClass = 'pill-red';
+          statusName = 'REMOVE';
+        } else if (log.action === 'Leave Party') {
+          detailsText = `User left ${log.details.code}`;
+          statusClass = 'pill-red';
+          statusName = 'LEAVE';
+        } else {
+          detailsText = JSON.stringify(log.details);
+        }
+
+        const dateStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        tr.innerHTML = `
+          <td><strong>${log.action}</strong></td>
+          <td style="color: var(--text-2);">${detailsText}</td>
+          <td style="color: var(--text-3); font-size:0.8rem;">${dateStr}</td>
+          <td><span class="pill ${statusClass}">${statusName}</span></td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    // Toast notifications helper
+    function toast(msg) {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.style.cssText = 'position:fixed; bottom:24px; right:24px; background:var(--surface-card); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:10px 20px; font-weight:600; font-size:0.9rem; z-index:2000; box-shadow:0 8px 24px rgba(0,0,0,0.5);';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 2500);
+    }
+  </script>
+</body>
+</html>

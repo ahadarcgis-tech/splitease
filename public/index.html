@@ -23,6 +23,29 @@
     </div>
   </div>
 
+  <!-- ── Sync Modal ── -->
+  <div id="syncModal" class="modal-overlay hidden">
+    <div class="modal-box" style="position: relative;">
+      <button class="text-btn" style="position: absolute; top: 12px; right: 12px; font-size: 1.2rem; padding: 4px 8px; color: var(--text-3);" onclick="closeSyncModal()">✕</button>
+      <div class="modal-emoji">📧</div>
+      <h2>Sync History via Email</h2>
+      <p id="syncModalDesc" style="font-size: 0.95rem; line-height: 1.4; margin-bottom: 12px;">Link your email to back up your local party history and restore it on other devices.</p>
+      
+      <!-- Step 1: Input Email -->
+      <div id="syncStepEmail">
+        <input type="email" id="syncEmailInput" placeholder="Enter your email…" autocomplete="off" style="width: 100%; margin-bottom: 12px;" />
+        <button id="syncEmailSubmitBtn" class="modal-cta" onclick="submitSyncEmail()">Send Verification Code →</button>
+      </div>
+
+      <!-- Step 2: Input Verification Code -->
+      <div id="syncStepCode" class="hidden">
+        <p style="font-size: 0.88rem; color: var(--text-3); margin-top: -4px; margin-bottom: 12px;">We've sent a 4-digit code to your email. (Simulated code will appear in a browser prompt or console!)</p>
+        <input type="text" id="syncCodeInput" placeholder="Code…" maxlength="4" autocomplete="off" style="text-align: center; font-size: 1.5rem; letter-spacing: 0.2em; font-weight: 800; width: 100%; margin-bottom: 12px;" />
+        <button id="syncCodeSubmitBtn" class="modal-cta" onclick="submitSyncCode()">Verify & Sync →</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Main App ── -->
   <div id="app" class="app hidden">
 
@@ -41,6 +64,7 @@
 
       <div class="nav-right">
         <span class="nav-user" id="navUser">Hi there!</span>
+        <button id="syncBtn" class="icon-btn" style="padding: 5px 10px; font-size: 0.82rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;" onclick="openSyncModal()">📧 Sync</button>
         <div class="nav-divider"></div>
         <div class="pill-switch" id="themeSwitch">
           <button class="pill-opt active" data-val="warm" onclick="setTheme('warm')">☀️ Warm</button>
