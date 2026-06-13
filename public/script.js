@@ -224,12 +224,16 @@ function enterPartyUI(code) {
   document.getElementById('noParty').classList.add('hidden');
   document.getElementById('inParty').classList.remove('hidden');
   document.getElementById('codeDisplay').textContent = code;
+  const pCell = document.getElementById('partyCell');
+  if (pCell) pCell.classList.remove('no-party-active');
 }
 
 function leavePartyUI() {
   document.getElementById('noParty').classList.remove('hidden');
   document.getElementById('inParty').classList.add('hidden');
   document.getElementById('codeDisplay').textContent = '------';
+  const pCell = document.getElementById('partyCell');
+  if (pCell) pCell.classList.add('no-party-active');
   renderMembers([]);
   renderExpenses([]);
   clearSettle();
@@ -260,7 +264,7 @@ function renderMembers(members) {
   members.forEach((m, i) => {
     const spent = (partyData?.expenses || [])
       .filter(e => e.memberId === m.id)
-      .reduce((s, e) => s + e.amount, 0);
+      .reduce((s, e) => s + parseFloat(e.amount || 0), 0);
     const isMe = m.id === deviceId;
     const div  = document.createElement('div');
     div.className = 'member-item' + (isMe ? ' is-me' : '');
@@ -378,7 +382,7 @@ function clearAllExpenses() {
 
 // ── 10. STATS ────────────────────────────────────────
 function updateStats(members, expenses) {
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  const total = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
   const share = members.length > 0 ? total / members.length : 0;
   const tEl = document.getElementById('statTotal');
   const sEl = document.getElementById('statShare');
@@ -397,42 +401,53 @@ function doSettle() {
 
   const spent = {};
   members.forEach(m => { spent[m.id] = 0; });
-  expenses.forEach(e => { if (spent[e.memberId] !== undefined) spent[e.memberId] += e.amount; });
+  expenses.forEach(e => { if (spent[e.memberId] !== undefined) spent[e.memberId] += parseFloat(e.amount || 0); });
 
-  const total = Object.values(spent).reduce((s, v) => s + v, 0);
+  const total = Object.values(spent).reduce((s, v) => s + parseFloat(v || 0), 0);
   const share = total / members.length;
 
   const bal = {};
   members.forEach(m => { bal[m.id] = parseFloat((spent[m.id] - share).toFixed(2)); });
 
+  // Create a copy of bal for the greedy transfers solver to mutate, keeping the original intact for the UI!
+  const solverBal = { ...bal };
+
   // Greedy min-transfers solver
-  const pos = [...members].filter(m => bal[m.id] >  0.005).sort((a,b) => bal[b.id]-bal[a.id]);
-  const neg = [...members].filter(m => bal[m.id] < -0.005).sort((a,b) => bal[a.id]-bal[b.id]);
+  const pos = [...members].filter(m => solverBal[m.id] >  0.005).sort((a,b) => solverBal[b.id]-solverBal[a.id]);
+  const neg = [...members].filter(m => solverBal[m.id] < -0.005).sort((a,b) => solverBal[a.id]-solverBal[b.id]);
   const transfers = [];
   let pi = 0, ni = 0;
   while (pi < pos.length && ni < neg.length) {
     const p = pos[pi], n = neg[ni];
-    const amt = parseFloat(Math.min(bal[p.id], -bal[n.id]).toFixed(2));
+    const amt = parseFloat(Math.min(solverBal[p.id], -solverBal[n.id]).toFixed(2));
     if (amt > 0) {
       transfers.push({ fromId: n.id, fromName: n.name, toId: p.id, toName: p.name, amount: amt });
-      bal[p.id] = parseFloat((bal[p.id] - amt).toFixed(2));
-      bal[n.id] = parseFloat((bal[n.id] + amt).toFixed(2));
+      solverBal[p.id] = parseFloat((solverBal[p.id] - amt).toFixed(2));
+      solverBal[n.id] = parseFloat((solverBal[n.id] + amt).toFixed(2));
     }
-    if (Math.abs(bal[p.id]) < 0.01) pi++;
-    if (Math.abs(bal[n.id]) < 0.01) ni++;
+    if (Math.abs(solverBal[p.id]) < 0.01) pi++;
+    if (Math.abs(solverBal[n.id]) < 0.01) ni++;
   }
-  renderSettle(members, spent, share, bal, transfers);
+  renderSettle(members, spent, share, total, bal, transfers);
 }
 
-function renderSettle(members, spent, share, bal, transfers) {
+function renderSettle(members, spent, share, total, bal, transfers) {
   const wrap = document.getElementById('settleWrap');
   wrap.innerHTML = '';
 
   const tabs = document.createElement('div');
   tabs.className = 'settle-tabs';
+
+  // 📋 Global "All" overview tab
+  const allBtn = document.createElement('button');
+  allBtn.className = 's-tab active';
+  allBtn.textContent = '📋 All Transfers';
+  allBtn.dataset.i = 'all';
+  tabs.appendChild(allBtn);
+
   members.forEach((m, i) => {
     const btn = document.createElement('button');
-    btn.className = 's-tab' + (i === 0 ? ' active' : '');
+    btn.className = 's-tab';
     btn.textContent = m.id === deviceId ? `${m.name} ⭐` : m.name;
     btn.dataset.i = i;
     tabs.appendChild(btn);
@@ -443,18 +458,66 @@ function renderSettle(members, spent, share, bal, transfers) {
   body.className = 'settle-body';
   wrap.appendChild(body);
 
-  function show(m) {
-    const b = bal[m.id];
-    const isPos = b >= 0;
-    const mT = transfers.filter(t => t.fromId === m.id || t.toId === m.id);
+  function show(tabVal) {
     body.innerHTML = '';
+
+    if (tabVal === 'all') {
+      // Global overview of all transfers
+      const sum = document.createElement('div');
+      sum.className = 'settle-summary';
+      sum.innerHTML = `
+        <div class="settle-meta">Total Expenses: <strong>$${total.toFixed(2)}</strong> · Members: <strong>${members.length}</strong></div>
+        <div class="settle-bal" style="color: var(--primary);">
+          ✨ Settle Plan (${transfers.length} transaction${transfers.length !== 1 ? 's' : ''})
+        </div>`;
+      body.appendChild(sum);
+
+      if (!transfers.length) {
+        const ok = document.createElement('div');
+        ok.className = 'txn-row';
+        ok.style.cssText = 'justify-content:center;color:var(--success);border-left:3px solid var(--success)';
+        ok.textContent = '✅ Everyone is even! No transfers needed.';
+        body.appendChild(ok);
+      } else {
+        transfers.forEach(t => {
+          const row = document.createElement('div');
+          row.className = 'txn-row pay';
+          row.style.borderLeftColor = 'var(--primary)';
+          row.innerHTML = `
+            <span><strong>${esc(t.fromName)}</strong> pays <strong>${esc(t.toName)}</strong></span>
+            <span class="txn-amt" style="color:var(--primary);">$${t.amount.toFixed(2)}</span>
+          `;
+          body.appendChild(row);
+        });
+      }
+      return;
+    }
+
+    // Individual member tab view
+    const m = members[tabVal];
+    const b = bal[m.id];
+    const mT = transfers.filter(t => t.fromId === m.id || t.toId === m.id);
 
     const sum = document.createElement('div');
     sum.className = 'settle-summary';
+
+    let balText = '';
+    let balClass = '';
+    if (b > 0.005) {
+      balText = `▲ Gets back $${b.toFixed(2)}`;
+      balClass = 'pos';
+    } else if (b < -0.005) {
+      balText = `▼ Owes $${Math.abs(b).toFixed(2)}`;
+      balClass = 'neg';
+    } else {
+      balText = `✅ Settled ($0.00)`;
+      balClass = 'settled';
+    }
+
     sum.innerHTML = `
       <div class="settle-meta">Paid <strong>$${spent[m.id].toFixed(2)}</strong> · Fair share <strong>$${share.toFixed(2)}</strong></div>
-      <div class="settle-bal ${isPos ? 'pos' : 'neg'}">
-        ${isPos ? `▲ Gets back $${b.toFixed(2)}` : `▼ Owes $${Math.abs(b).toFixed(2)}`}
+      <div class="settle-bal ${balClass}">
+        ${balText}
       </div>`;
     body.appendChild(sum);
 
@@ -477,12 +540,18 @@ function renderSettle(members, spent, share, bal, transfers) {
     }
   }
 
-  show(members[0]);
+  // Show the "All" tab by default
+  show('all');
+
   tabs.querySelectorAll('.s-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       tabs.querySelectorAll('.s-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      show(members[+btn.dataset.i]);
+      if (btn.dataset.i === 'all') {
+        show('all');
+      } else {
+        show(+btn.dataset.i);
+      }
     });
   });
 }
