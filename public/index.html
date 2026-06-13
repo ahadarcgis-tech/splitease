@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="warm" data-mode="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SplitEase — Group Billing Calculator</title>
+  <meta name="description" content="Real-time group expense tracker. Create a party, share the code, split bills fairly." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Onboarding Modal ── -->
+  <div id="onboardModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-emoji">💸</div>
+      <h2>Welcome to SplitEase</h2>
+      <p>No account needed — just enter your name so your team can recognize you.</p>
+      <input type="text" id="nameInput" placeholder="Your display name…" maxlength="20" autocomplete="off" />
+      <button id="nameSubmitBtn" class="modal-cta">Get Started →</button>
+    </div>
+  </div>
+
+  <!-- ── Main App ── -->
+  <div id="app" class="app hidden">
+
+    <!-- ── Top Navbar ── -->
+    <nav class="topnav">
+      <div class="nav-brand">
+        <span class="nav-logo">💸</span>
+        <span class="nav-title">SplitEase</span>
+      </div>
+
+      <div class="nav-stats">
+        <div class="nav-stat-pill" id="statTotal">$0.00 total</div>
+        <div class="nav-stat-pill" id="statShare">$0.00 each</div>
+        <div class="nav-stat-pill" id="statMembers">0 members</div>
+      </div>
+
+      <div class="nav-right">
+        <span class="nav-user" id="navUser">Hi there!</span>
+        <div class="nav-divider"></div>
+        <div class="pill-switch" id="themeSwitch">
+          <button class="pill-opt active" data-val="warm" onclick="setTheme('warm')">☀️ Warm</button>
+          <button class="pill-opt" data-val="cool" onclick="setTheme('cool')">🌊 Cool</button>
+        </div>
+        <label class="toggle-switch" title="Toggle dark mode">
+          <input type="checkbox" id="darkToggle" checked onchange="toggleDark(this)" />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </label>
+      </div>
+    </nav>
+
+    <!-- ── Status bar ── -->
+    <div id="statusBar" class="status-bar disconnected">
+      <span class="status-dot"></span>
+      <span id="statusText">Connecting…</span>
+    </div>
+
+    <!-- ── Bento Grid ── -->
+    <div class="bento">
+
+      <!-- CELL: Party (spans 2 cols, split into party-create + members) -->
+      <div class="bento-cell cell-party">
+
+        <!-- LEFT: Party controls -->
+        <div class="party-half">
+          <div class="cell-hdr">
+            <span class="cell-icon">🎉</span>
+            <h2>Party</h2>
+            <span class="live-badge" id="liveBadge">OFFLINE</span>
+          </div>
+
+          <div id="noParty" class="party-state">
+            <p class="hint-text">Create a new party or paste a code to join your team</p>
+            <button class="btn-primary" id="createPartyBtn">+ Create New Party</button>
+            <div class="or-divider"><span>or join existing</span></div>
+            <div class="input-row">
+              <input type="text" id="joinInput" class="code-field" placeholder="ABC123" maxlength="6" spellcheck="false" />
+              <button class="btn-secondary" id="joinBtn">Join →</button>
+            </div>
+          </div>
+
+          <div id="inParty" class="party-state hidden">
+            <div class="code-card">
+              <div class="code-card-left">
+                <span class="code-card-lbl">Party Code</span>
+                <span class="code-card-val" id="codeDisplay">------</span>
+              </div>
+              <button class="icon-btn" id="copyBtn">📋 Copy</button>
+            </div>
+            <p class="hint-text">Share this code — anyone can join on any device</p>
+            <button class="btn-danger" id="leaveBtn">Leave Party</button>
+          </div>
+        </div>
+
+        <!-- RIGHT: Members -->
+        <div class="party-half members-half">
+          <div class="cell-hdr">
+            <span class="cell-icon">👥</span>
+            <h2>Members</h2>
+            <span class="chip" id="memberCountChip">0</span>
+          </div>
+          <div class="scroll-area" id="membersList">
+            <div class="empty-msg">Join a party to see members</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- CELL: Add Expense (spans 2 rows tall) -->
+      <div class="bento-cell cell-expense">
+        <div class="cell-hdr">
+          <span class="cell-icon">➕</span>
+          <h2>Add Expense</h2>
+        </div>
+        <form id="expenseForm" class="expense-form" autocomplete="off">
+          <div class="field-group">
+            <label class="field-lbl">Paid by</label>
+            <select id="paidBy" required>
+              <option value="">— Join a party first —</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-lbl">Amount</label>
+            <div class="amount-wrap">
+              <span class="currency">$</span>
+              <input type="number" id="amtInput" placeholder="0.00" step="0.01" min="0.01" required />
+            </div>
+          </div>
+          <div class="field-group full">
+            <label class="field-lbl">Description <span class="optional-lbl">(optional)</span></label>
+            <input type="text" id="descInput" placeholder="What was it for?" maxlength="60" />
+          </div>
+          <div class="field-group">
+            <label class="field-lbl">Date</label>
+            <input type="date" id="dateInput" required />
+          </div>
+          <button type="submit" class="btn-primary submit-btn">Add Expense</button>
+        </form>
+      </div>
+
+      <!-- CELL: Expense Log -->
+      <div class="bento-cell cell-log">
+        <div class="cell-hdr">
+          <span class="cell-icon">📋</span>
+          <h2>Expenses</h2>
+          <span class="chip" id="expChip">0</span>
+          <button class="text-btn" id="clearAllBtn">Clear</button>
+        </div>
+        <div class="scroll-area" id="expenseLog">
+          <div class="empty-msg">No expenses yet</div>
+        </div>
+      </div>
+
+      <!-- CELL: History -->
+      <div class="bento-cell cell-history">
+        <div class="cell-hdr">
+          <span class="cell-icon">🕐</span>
+          <h2>History</h2>
+          <span class="hint-inline">tap to rejoin</span>
+        </div>
+        <div class="scroll-area" id="historyList">
+          <div class="empty-msg">Your past parties appear here</div>
+        </div>
+      </div>
+
+      <!-- CELL: Settlement (spans all 3 rows on right) -->
+      <div class="bento-cell cell-settle">
+        <div class="cell-hdr">
+          <span class="cell-icon">⚖️</span>
+          <h2>Settlement</h2>
+          <button class="btn-calc" id="calcBtn">Calculate</button>
+        </div>
+        <div class="settle-wrap" id="settleWrap">
+          <div class="empty-msg">Add expenses then press Calculate</div>
+        </div>
+      </div>
+
+    </div><!-- /bento -->
+  </div><!-- /app -->
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
