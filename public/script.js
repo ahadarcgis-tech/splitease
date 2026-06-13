@@ -335,7 +335,8 @@ function submitExpense(e) {
     if (res && res.success) {
       document.getElementById('expenseForm').reset();
       document.getElementById('dateInput').valueAsDate = new Date();
-      populatePaidBy(partyData?.members || []);
+      const paidBySel = document.getElementById('paidBy');
+      if (paidBySel) paidBySel.value = deviceId;
       toast('💸 Expense added!');
     } else {
       toast('Failed to add expense');
